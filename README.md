@@ -39,11 +39,11 @@ The site speaks the old app's 80+ languages; English texts are the translation k
 | `tiqs_legacy` | Copy of the old CodeIgniter data. Only ever read. Locally the merged itsmycontactinfo + old site data is in `tiqs_legacy_merged` (`LEGACY_DB_DATABASE=tiqs_legacy_merged`) |
 | `tiqs_upgrade_test` / `tiqs_legacy_test` | Used by the test suite (`php artisan test`) |
 
-**Seeding (Forge):** `php artisan migrate --force && php artisan db:seed --force` fills a new database with all real data: the customer data from `database/seeders/data/customer-data.enc` (same ids, so printed QR codes keep working), the app settings and the translations. The file is encrypted: set `SEED_DATA_KEY` on the server to the value in the `.env` that exported it. Seeding never touches a database that already has users.
+**Seeding (Forge):** `php artisan migrate --force && php artisan db:seed --force` fills a new database with all real data: the customer data from `database/seeders/data/customer-data.json` (same ids, so printed QR codes keep working), the app settings and the translations. That file holds personal data and is not in git: upload it first (see [Files that are not in git](#files-that-are-not-in-git)). Without it, only the settings and translations are seeded. Seeding never touches a database that already has users.
 
-**Updating the seed files:** after the data changed here (for example a new import), run `php artisan tiqs:export-seed-data` and commit `customer-data.enc` and `translations.json`.
+**Updating the seed files:** after the data changed here (for example a new import), run `php artisan tiqs:export-seed-data`, commit `translations.json` and upload `customer-data.json` to the server again (only useful before the server has users).
 
-**Demo data** (local only): `php artisan migrate:fresh --seed` without `SEED_DATA_KEY` creates `admin@`, `business@`, `waiter@` and `legacy@tiqs.test`. Every password is `password`. Demo accounts are never added to a database with customers.
+**Demo data** (local only): `php artisan migrate:fresh --seed` without `database/seeders/data/customer-data.json` creates `admin@`, `business@`, `waiter@` and `legacy@tiqs.test`. Every password is `password`. Demo accounts are never added to a database with customers.
 
 **Real data:** `php artisan tiqs:import-legacy --fresh --legacy-path=/var/www/html/tips` rebuilds the database and copies everything from `tiqs_legacy`. It ends with a per-table summary and a list of every data problem it fixed or skipped. It refuses to run on a database that already has users unless `--fresh` is given.
 
@@ -58,6 +58,7 @@ Files that users uploaded are never committed. Git ignores these folders, so a d
 | Folder | What is in it | On the server |
 |---|---|---|
 | `public/assets/images/` | Images uploaded in the old app: profile photos (`users/`), card logos (`business/`), card banners (`vcard/`) and tip page backgrounds (`pattern/`), with their old names | **Upload it from your computer once**, before go-live (see below) |
+| `database/seeders/data/customer-data.json` | The customer data for seeding a new server, written by `tiqs:export-seed-data`. Plain text with personal data (emails, phone numbers, IBANs, old password hashes) | **Upload it once** before `db:seed`, then delete it from the server |
 | `storage/app/public/` | Files users upload in this app: profile photos, card logos and banners, card pictures, tip page backgrounds. Shown under `/storage` | Filled by the users on the server. Run `php artisan storage:link` once. Do not upload the local copy: it only holds test files |
 | `storage/app/private/` | Private uploads: business cards and pictures sent to the card assistant. Never public | Filled on the server. Do not upload the local copy |
 
@@ -71,6 +72,13 @@ rsync -avz public/assets/ forge@SERVER_IP:/home/forge/SITE_FOLDER/public/assets/
 - Without `--delete`, rsync only adds and updates files, so it never removes anything on the server.
 - If the site uses zero-downtime deploys (a new release folder per deploy), keep these folders in the shared folder Forge links into every release, or they are lost on the next deploy.
 - After go-live the server holds the only copy of the users' uploads: include `storage/app` and `public/assets` in the server backups. To move to another server, copy these folders from the old server, not from your computer.
+
+**Uploading the customer data**, then seeding and deleting it:
+
+```bash
+scp database/seeders/data/customer-data.json forge@SERVER_IP:/home/forge/SITE_FOLDER/database/seeders/data/
+ssh forge@SERVER_IP 'cd /home/forge/SITE_FOLDER && php artisan db:seed --force && rm database/seeders/data/customer-data.json'
+```
 
 `.env` (keys and passwords) is not in git either: fill it in on the server (Forge › Site › Environment).
 

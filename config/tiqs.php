@@ -21,12 +21,11 @@ return [
 
     /*
     | The customer data (users, businesses, tips, cards …) for seeding a new
-    | server: an encrypted file made by `php artisan tiqs:export-seed-data` and
-    | read by CustomerDataSeeder. The key must be the same on both machines.
+    | server: a JSON file made by `php artisan tiqs:export-seed-data` and read
+    | by CustomerDataSeeder. Not in git: it is uploaded to the server by hand.
     */
     'seed_data' => [
-        'key' => env('SEED_DATA_KEY'),
-        'path' => database_path('seeders/data/customer-data.enc'),
+        'path' => database_path('seeders/data/customer-data.json'),
         'translations_path' => database_path('seeders/data/translations.json'),
     ],
 

@@ -14,11 +14,11 @@ use Illuminate\Support\Facades\Schema;
  * Writes the current database to the seed files, so `php artisan db:seed` on
  * a new server (Forge) recreates it:
  *
- * - database/seeders/data/customer-data.enc: every customer table, encrypted
- *   with SEED_DATA_KEY (CustomerDataSeeder)
- * - database/seeders/data/translations.json: every translation (TranslationSeeder)
+ * - database/seeders/data/customer-data.json: every customer table (CustomerDataSeeder).
+ *   Not in git: upload it to the server by hand.
+ * - database/seeders/data/translations.json: every translation (TranslationSeeder). Commit it.
  *
- * Run it after the data changed here (for example after tiqs:import-legacy), then commit both files.
+ * Run it after the data changed here (for example after tiqs:import-legacy).
  */
 #[Signature('tiqs:export-seed-data')]
 #[Description('Write the current customer data and translations to the seed files')]
@@ -26,13 +26,6 @@ class ExportSeedData extends Command
 {
     public function handle(): int
     {
-        if ((string) config('tiqs.seed_data.key') === '') {
-            $this->components->error('SEED_DATA_KEY is not set. Add this line to .env (and later to the server), then run again:');
-            $this->line('SEED_DATA_KEY='.CustomerDataFile::generateKey());
-
-            return self::FAILURE;
-        }
-
         $tables = [];
         $listing = Schema::getTableListing(schema: DB::connection()->getDatabaseName(), schemaQualified: false);
         foreach (array_diff($listing, CustomerDataFile::SKIPPED_TABLES) as $table) {
@@ -52,7 +45,7 @@ class ExportSeedData extends Command
         $translations = $this->writeTranslations();
 
         $this->table(['Table', 'Rows'], collect($tables)->map(fn (array $rows, string $table): array => [$table, count($rows)])->values()->all());
-        $this->components->info(sprintf('Customer data written to database/seeders/data/customer-data.enc; %d translations written to translations.json.', $translations));
+        $this->components->info(sprintf('Customer data written to database/seeders/data/customer-data.json (upload it to the server by hand); %d translations written to translations.json.', $translations));
 
         return self::SUCCESS;
     }

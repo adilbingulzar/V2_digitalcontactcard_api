@@ -10,11 +10,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Fills a new database with the customer data from the encrypted file made by
+ * Fills a new database with the customer data from the file made by
  * `php artisan tiqs:export-seed-data` (users, businesses, tips, business cards …),
  * with the same ids, so printed QR codes keep working.
  *
- * Needs SEED_DATA_KEY. Does nothing when the database already has users, so
+ * Does nothing without the file, or when the database already has users, so
  * running `db:seed` again never duplicates or overwrites customer data.
  */
 class CustomerDataSeeder extends Seeder
@@ -23,8 +23,8 @@ class CustomerDataSeeder extends Seeder
 
     public function run(): void
     {
-        if (! CustomerDataFile::exists() || (string) config('tiqs.seed_data.key') === '') {
-            $this->command?->warn('Customer data skipped: SEED_DATA_KEY is not set or database/seeders/data/customer-data.enc is missing.');
+        if (! CustomerDataFile::exists()) {
+            $this->command?->warn('Customer data skipped: database/seeders/data/customer-data.json is missing.');
 
             return;
         }

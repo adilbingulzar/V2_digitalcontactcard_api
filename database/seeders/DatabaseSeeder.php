@@ -14,7 +14,7 @@ class DatabaseSeeder extends Seeder
     /**
      * Seed the application's database.
      *
-     * The customer data (CustomerDataSeeder, needs SEED_DATA_KEY) and the
+     * The customer data (CustomerDataSeeder, needs customer-data.json) and the
      * reference data are seeded in every environment. Demo accounts and sample
      * tips are only seeded locally and in testing, and only into a database
      * without customers.

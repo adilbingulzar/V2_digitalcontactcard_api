@@ -13,6 +13,9 @@ class DatabaseSeederTest extends TestCase
 
     public function test_seeds_one_settings_row_and_demo_accounts_in_testing(): void
     {
+        // Keep the real customer data file (if this machine has one) out of the test database.
+        config(['tiqs.seed_data.path' => sys_get_temp_dir().'/missing-customer-data.json']);
+
         $this->seed();
 
         $this->assertSame(1, AppSetting::count());

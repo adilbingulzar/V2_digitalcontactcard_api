@@ -34,3 +34,6 @@ Thumbs.db
 PROMPTS.md
 # Claude Code skills and local settings (made by Laravel Boost: php artisan boost:install)
 /.claude/
+
+# Customer data for seeding a new server: personal data, uploaded to the server by hand
+/database/seeders/data/customer-data.json
