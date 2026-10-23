@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Runs the API locally: the Laravel server and a queue worker (emails, SMS).
+# The website is in its own repo: run `npm run dev` there.
+#
+#   bin/dev              start the API and the queue worker
+#   bin/dev seed         reset the database with demo data, then start
+#   bin/dev stop         stop everything this script started
+#
+# Port: API 8000. Logs: storage/logs/dev-*.log
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export PATH="$ROOT/bin:$PATH"
+LOGS="$ROOT/storage/logs"
+PIDS="$LOGS/dev.pids"
+
+stop() {
+  if [ -f "$PIDS" ]; then
+    while read -r pid; do kill "$pid" 2>/dev/null || true; done < "$PIDS"
+    rm -f "$PIDS"
+  fi
+  # Anything still holding the port (for example started by hand).
+  pid=$(ss -ltnp 2>/dev/null | grep ":8000 " | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2 || true)
+  [ -n "$pid" ] && kill "$pid" 2>/dev/null || true
+}
+
+run() { # name, command...
+  local name=$1; shift
+  nohup "$@" > "$LOGS/dev-$name.log" 2>&1 &
+  echo $! >> "$PIDS"
+}
+
+wait_until_up() {
+  for _ in $(seq 1 120); do
+    if curl -s -o /dev/null http://127.0.0.1:8000/up; then
+      echo "API: http://127.0.0.1:8000"
+      echo "Stop with: bin/dev stop"
+      return 0
+    fi
+    sleep 0.5
+  done
+  echo "The API did not start. See $LOGS/dev-*.log" >&2
+  return 1
+}
+
+start() {
+  stop
+  mkdir -p "$LOGS"
+  cd "$ROOT"
+  run api php artisan serve --host=127.0.0.1 --port=8000
+  run queue php artisan queue:work --tries=3
+  wait_until_up
+}
+
+case "${1:-}" in
+  "") start ;;
+  seed)
+    (cd "$ROOT" && php artisan migrate:fresh --seed --force)
+    start
+    ;;
+  stop) stop; echo "Stopped." ;;
+  *) sed -n '2,8p' "$0"; exit 1 ;;
+esac

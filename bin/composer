@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /usr/bin/php8.5 "$HOME/.local/bin/composer.phar" "$@"
