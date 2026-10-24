@@ -60,6 +60,18 @@ class AiSettingsControllerTest extends TestCase
         $this->getJson(route('api.v1.admin.ai-settings.show'))->assertOk()->assertDontSee('secret');
     }
 
+    public function test_switches_web_search_and_its_price(): void
+    {
+        $this->getJson(route('api.v1.admin.ai-settings.show'))
+            ->assertJsonPath('data.ai_web_search', true)
+            ->assertJsonPath('data.openai_search_price', '10.0000');
+
+        $this->putJson(route('api.v1.admin.ai-settings.update'), $this->settings(['ai_web_search' => false, 'anthropic_search_price' => 12.5]))
+            ->assertOk()
+            ->assertJsonPath('data.ai_web_search', false)
+            ->assertJsonPath('data.anthropic_search_price', '12.5000');
+    }
+
     public function test_keeps_a_saved_key_when_left_empty_and_removes_it_on_request(): void
     {
         $this->putJson(route('api.v1.admin.ai-settings.update'), $this->settings())->assertOk();

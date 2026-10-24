@@ -18,6 +18,8 @@ use Throwable;
  */
 class AnthropicProvider implements AiProvider
 {
+    private const int MAX_SEARCHES = 3;
+
     public function __construct(private string $apiKey, private ?string $model = null) {}
 
     public function models(): array
@@ -65,6 +67,40 @@ class AnthropicProvider implements AiProvider
         }
 
         return new AiCompletion($data, $usage->model, $usage->inputTokens, $usage->outputTokens);
+    }
+
+    public function searchWeb(string $instructions, string $query): AiCompletion
+    {
+        if (blank($this->model)) {
+            throw new AiException('Choose a model first.');
+        }
+
+        // The basic tool versions work with every model; a few searches and page reads are enough for one business.
+        $message = $this->call(fn (Client $client) => $client->messages->create(
+            maxTokens: 4000,
+            messages: [['role' => 'user', 'content' => $query]],
+            model: $this->model,
+            system: $instructions,
+            tools: [
+                ['type' => 'web_search_20250305', 'name' => 'web_search', 'maxUses' => self::MAX_SEARCHES],
+                ['type' => 'web_fetch_20250910', 'name' => 'web_fetch', 'maxUses' => self::MAX_SEARCHES, 'maxContentTokens' => 20000],
+            ],
+        ));
+
+        $text = '';
+        foreach ($message->content as $block) {
+            if ($block->type === 'text') {
+                $text .= $block->text;
+            }
+        }
+
+        return new AiCompletion(
+            ['text' => trim($text)],
+            $message->model,
+            $message->usage->inputTokens,
+            $message->usage->outputTokens,
+            $message->usage->serverToolUse->webSearchRequests ?? 0,
+        );
     }
 
     /**

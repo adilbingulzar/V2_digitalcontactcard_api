@@ -3,7 +3,7 @@
 namespace App\Services\Ai;
 
 /**
- * A model's answer, already decoded from JSON, and what it cost in tokens.
+ * A model's answer, already decoded from JSON, and what it cost in tokens and web searches.
  */
 final readonly class AiCompletion
 {
@@ -15,5 +15,6 @@ final readonly class AiCompletion
         public string $model,
         public int $inputTokens,
         public int $outputTokens,
+        public int $webSearches = 0,
     ) {}
 }

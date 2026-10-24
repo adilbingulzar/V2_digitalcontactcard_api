@@ -13,7 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * The AI assistant of the card builder: on or off, Anthropic or OpenAI, the
- * model, each provider's API key, and how many messages a user may send a day.
+ * model, each provider's API key, how many messages a user may send a day,
+ * and whether it may search the internet (charged per search).
  * Keys are stored encrypted and never sent back; only their last characters are.
  */
 class AiSettingsController extends AdminController
@@ -41,6 +42,9 @@ class AiSettingsController extends AdminController
             'anthropic_output_price' => ['nullable', 'numeric', 'between:0,1000'],
             'openai_input_price' => ['nullable', 'numeric', 'between:0,1000'],
             'openai_output_price' => ['nullable', 'numeric', 'between:0,1000'],
+            'ai_web_search' => ['sometimes', 'boolean'],
+            'anthropic_search_price' => ['sometimes', 'nullable', 'numeric', 'between:0,1000'],
+            'openai_search_price' => ['sometimes', 'nullable', 'numeric', 'between:0,1000'],
         ]);
 
         $settings = AppSetting::current();
@@ -55,6 +59,11 @@ class AiSettingsController extends AdminController
             'openai_input_price' => $validated['openai_input_price'] ?? null,
             'openai_output_price' => $validated['openai_output_price'] ?? null,
         ]);
+        foreach (['ai_web_search', 'anthropic_search_price', 'openai_search_price'] as $field) {
+            if (array_key_exists($field, $validated)) {
+                $settings->{$field} = $validated[$field];
+            }
+        }
 
         foreach (AppSetting::AI_PROVIDERS as $provider) {
             $key = trim((string) ($validated["{$provider}_api_key"] ?? ''));
@@ -156,6 +165,9 @@ class AiSettingsController extends AdminController
             'anthropic_output_price' => $settings->anthropic_output_price,
             'openai_input_price' => $settings->openai_input_price,
             'openai_output_price' => $settings->openai_output_price,
+            'ai_web_search' => $settings->ai_web_search,
+            'anthropic_search_price' => $settings->anthropic_search_price,
+            'openai_search_price' => $settings->openai_search_price,
             'is_ready' => $settings->isAiReady(),
         ];
     }

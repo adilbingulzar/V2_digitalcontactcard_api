@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Model;
     'business_plan_monthly', 'business_plan_yearly', 'free_trial_days', 'payout_debtor_name', 'payout_debtor_iban',
     'payout_debtor_bic', 'ai_enabled', 'ai_provider', 'anthropic_api_key', 'anthropic_model', 'openai_api_key', 'openai_model',
     'ai_daily_limit', 'anthropic_input_price', 'anthropic_output_price', 'openai_input_price', 'openai_output_price',
+    'ai_web_search', 'anthropic_search_price', 'openai_search_price',
 ])]
 class AppSetting extends Model
 {
@@ -46,6 +47,9 @@ class AppSetting extends Model
             'anthropic_output_price' => 'decimal:4',
             'openai_input_price' => 'decimal:4',
             'openai_output_price' => 'decimal:4',
+            'ai_web_search' => 'boolean',
+            'anthropic_search_price' => 'decimal:4',
+            'openai_search_price' => 'decimal:4',
         ];
     }
 
@@ -70,11 +74,12 @@ class AppSetting extends Model
     }
 
     /**
-     * What the provider charges for the chosen model, in USD per million input or output tokens.
+     * What the provider charges for the chosen model, in USD per million input or output tokens,
+     * or ('search') per 1000 web searches.
      */
     public function aiPrice(string $provider, string $direction): ?string
     {
-        return in_array($provider, self::AI_PROVIDERS, true) && in_array($direction, ['input', 'output'], true)
+        return in_array($provider, self::AI_PROVIDERS, true) && in_array($direction, ['input', 'output', 'search'], true)
             ? $this->{"{$provider}_{$direction}_price"}
             : null;
     }

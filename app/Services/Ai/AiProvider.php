@@ -29,4 +29,12 @@ interface AiProvider
      * @throws AiException
      */
     public function complete(string $system, array $messages, array $schema): AiCompletion;
+
+    /**
+     * Searches the internet with the provider's own web search and answers in plain
+     * text: data['text'] holds what was found, webSearches how many searches it took.
+     *
+     * @throws AiException
+     */
+    public function searchWeb(string $instructions, string $query): AiCompletion;
 }

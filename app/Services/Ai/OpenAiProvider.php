@@ -73,6 +73,48 @@ class OpenAiProvider implements AiProvider
     }
 
     /**
+     * Web search only exists in the Responses API, so this one call goes there.
+     */
+    public function searchWeb(string $instructions, string $query): AiCompletion
+    {
+        if (blank($this->model)) {
+            throw new AiException('Choose a model first.');
+        }
+
+        $response = $this->send(fn (PendingRequest $request) => $request->post('responses', [
+            'model' => $this->model,
+            'instructions' => $instructions,
+            'input' => $query,
+            'tools' => [['type' => 'web_search']],
+            'max_output_tokens' => 4000,
+        ]));
+
+        $text = '';
+        $searches = 0;
+        foreach ($response->json('output', []) as $item) {
+            // Only searches are charged; opening a found page is not.
+            if (($item['type'] ?? null) === 'web_search_call' && in_array($item['action']['type'] ?? 'search', ['search'], true)) {
+                $searches++;
+            }
+            if (($item['type'] ?? null) === 'message') {
+                foreach ($item['content'] ?? [] as $part) {
+                    if (($part['type'] ?? null) === 'output_text') {
+                        $text .= $part['text'];
+                    }
+                }
+            }
+        }
+
+        return new AiCompletion(
+            ['text' => trim($text)],
+            (string) ($response->json('model') ?? $this->model),
+            (int) $response->json('usage.input_tokens', 0),
+            (int) $response->json('usage.output_tokens', 0),
+            $searches,
+        );
+    }
+
+    /**
      * @param  string|list<array<string, string>>  $content
      * @return string|list<array<string, mixed>>
      */

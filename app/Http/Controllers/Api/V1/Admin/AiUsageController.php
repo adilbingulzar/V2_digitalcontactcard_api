@@ -11,8 +11,8 @@ use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * What the AI cost per user in a month, for billing users: requests, tokens
- * and cost in USD, and every single request as a CSV file.
+ * What the AI cost per user in a month, for billing users: requests, tokens,
+ * web searches and cost in USD, and every single request as a CSV file.
  */
 class AiUsageController extends AdminController
 {
@@ -32,6 +32,7 @@ class AiUsageController extends AdminController
                 DB::raw('SUM(CASE WHEN ai_usage_logs.succeeded THEN 0 ELSE 1 END) as failed'),
                 DB::raw('SUM(ai_usage_logs.input_tokens) as input_tokens'),
                 DB::raw('SUM(ai_usage_logs.output_tokens) as output_tokens'),
+                DB::raw('SUM(ai_usage_logs.web_searches) as web_searches'),
                 DB::raw('SUM(ai_usage_logs.cost) as cost'),
                 DB::raw('SUM(CASE WHEN ai_usage_logs.cost IS NULL THEN 1 ELSE 0 END) as unpriced'),
             ])
@@ -43,6 +44,7 @@ class AiUsageController extends AdminController
                 'failed' => (int) $row->getAttribute('failed'),
                 'input_tokens' => (int) $row->input_tokens,
                 'output_tokens' => (int) $row->output_tokens,
+                'web_searches' => (int) $row->web_searches,
                 'cost' => number_format((float) $row->cost, 4, '.', ''),
                 'unpriced' => (int) $row->getAttribute('unpriced'),
             ]);
@@ -55,6 +57,7 @@ class AiUsageController extends AdminController
                     'requests' => $users->sum('requests'),
                     'input_tokens' => $users->sum('input_tokens'),
                     'output_tokens' => $users->sum('output_tokens'),
+                    'web_searches' => $users->sum('web_searches'),
                     'cost' => number_format($users->sum(fn (array $user): float => (float) $user['cost']), 4, '.', ''),
                     'unpriced' => $users->sum('unpriced'),
                 ],
@@ -74,7 +77,7 @@ class AiUsageController extends AdminController
             $out = fopen('php://output', 'w');
             // Byte order mark, so Excel reads the file as UTF-8.
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['Date', 'User ID', 'Name', 'Email', 'Feature', 'Provider', 'Model', 'Input tokens', 'Output tokens', 'Input price (USD / 1M)', 'Output price (USD / 1M)', 'Cost (USD)', 'Succeeded'], escape: '');
+            fputcsv($out, ['Date', 'User ID', 'Name', 'Email', 'Feature', 'Provider', 'Model', 'Input tokens', 'Output tokens', 'Web searches', 'Input price (USD / 1M)', 'Output price (USD / 1M)', 'Search price (USD / 1000)', 'Cost (USD)', 'Succeeded'], escape: '');
 
             $logs->with('user:id,name,email')->lazyById(500)->each(function (AiUsageLog $log) use ($out, $timezone): void {
                 fputcsv($out, [
@@ -87,8 +90,10 @@ class AiUsageController extends AdminController
                     $log->model,
                     $log->input_tokens,
                     $log->output_tokens,
+                    $log->web_searches,
                     $log->input_price,
                     $log->output_price,
+                    $log->search_price,
                     $log->cost,
                     $log->succeeded ? 'yes' : 'no',
                 ], escape: '');

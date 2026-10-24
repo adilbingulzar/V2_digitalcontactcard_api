@@ -75,4 +75,25 @@ class OpenAiProviderTest extends TestCase
             ['type' => 'file', 'file' => ['filename' => 'brand.pdf', 'file_data' => 'data:application/pdf;base64,BBBB']],
         ]);
     }
+
+    public function test_searches_the_web_through_the_responses_api_and_counts_only_searches(): void
+    {
+        Http::fake(['api.openai.com/v1/responses' => Http::response([
+            'model' => 'gpt-5.1-2026-09-01',
+            'output' => [
+                ['type' => 'web_search_call', 'action' => ['type' => 'search', 'query' => 'KFC Pakistan']],
+                ['type' => 'web_search_call', 'action' => ['type' => 'open_page', 'url' => 'https://www.kfcpakistan.com/']],
+                ['type' => 'message', 'content' => [['type' => 'output_text', 'text' => 'Phone +92-21-35877976 (https://www.kfcpakistan.com/)']]],
+            ],
+            'usage' => ['input_tokens' => 900, 'output_tokens' => 60],
+        ])]);
+
+        $found = (new OpenAiProvider('sk-test', 'gpt-5.1'))->searchWeb('Find business facts.', 'KFC Pakistan contact');
+
+        $this->assertSame(['text' => 'Phone +92-21-35877976 (https://www.kfcpakistan.com/)'], $found->data);
+        $this->assertSame([900, 60, 1], [$found->inputTokens, $found->outputTokens, $found->webSearches]);
+        Http::assertSent(fn (Request $request) => $request['tools'] === [['type' => 'web_search']]
+            && $request['instructions'] === 'Find business facts.'
+            && $request['input'] === 'KFC Pakistan contact');
+    }
 }

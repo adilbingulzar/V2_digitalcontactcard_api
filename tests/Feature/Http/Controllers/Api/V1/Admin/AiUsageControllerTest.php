@@ -50,7 +50,7 @@ class AiUsageControllerTest extends TestCase
         $this->assertStringContainsString('ai-usage-2026-10.csv', (string) $response->headers->get('content-disposition'));
         $csv = $response->streamedContent();
         $this->assertStringContainsString('Date,"User ID",Name,Email,Feature,Provider,Model', $csv);
-        $this->assertStringContainsString("\"2026-10-05 12:00:00\",{$anna->id},'=Anna,anna@example.com,card_assistant,openai,gpt-6.1-sol,2000,300,1.0000,5.0000,0.003500,yes", $csv);
+        $this->assertStringContainsString("\"2026-10-05 12:00:00\",{$anna->id},'=Anna,anna@example.com,card_assistant,openai,gpt-6.1-sol,2000,300,0,1.0000,5.0000,,0.003500,yes", $csv);
     }
 
     public function test_only_admins_see_the_usage(): void

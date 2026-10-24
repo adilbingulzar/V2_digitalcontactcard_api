@@ -10,10 +10,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * One request to an AI provider: who caused it, the tokens it used and its cost
- * in USD, worked out with the prices admins set for the provider at that moment.
+ * One request to an AI provider: who caused it, the tokens and web searches it used
+ * and its cost in USD, worked out with the prices admins set for the provider at that moment.
  */
-#[Fillable(['user_id', 'feature', 'provider', 'model', 'input_tokens', 'output_tokens', 'input_price', 'output_price', 'cost', 'succeeded'])]
+#[Fillable(['user_id', 'feature', 'provider', 'model', 'input_tokens', 'output_tokens', 'web_searches', 'input_price', 'output_price', 'search_price', 'cost', 'succeeded'])]
 class AiUsageLog extends Model
 {
     /** @use HasFactory<AiUsageLogFactory> */
@@ -33,8 +33,10 @@ class AiUsageLog extends Model
         return [
             'input_tokens' => 'integer',
             'output_tokens' => 'integer',
+            'web_searches' => 'integer',
             'input_price' => 'decimal:4',
             'output_price' => 'decimal:4',
+            'search_price' => 'decimal:4',
             'cost' => 'decimal:6',
             'succeeded' => 'boolean',
         ];
@@ -45,9 +47,11 @@ class AiUsageLog extends Model
         $settings = AppSetting::current();
         $inputPrice = $settings->aiPrice($provider, 'input');
         $outputPrice = $settings->aiPrice($provider, 'output');
-        $cost = $inputPrice === null || $outputPrice === null
+        $searchPrice = $completion->webSearches > 0 ? $settings->aiPrice($provider, 'search') : null;
+        $cost = $inputPrice === null || $outputPrice === null || ($completion->webSearches > 0 && $searchPrice === null)
             ? null
-            : ($completion->inputTokens * (float) $inputPrice + $completion->outputTokens * (float) $outputPrice) / 1_000_000;
+            : ($completion->inputTokens * (float) $inputPrice + $completion->outputTokens * (float) $outputPrice) / 1_000_000
+                + $completion->webSearches * (float) $searchPrice / 1000;
 
         return self::create([
             'user_id' => $user?->id,
@@ -56,8 +60,10 @@ class AiUsageLog extends Model
             'model' => $completion->model,
             'input_tokens' => $completion->inputTokens,
             'output_tokens' => $completion->outputTokens,
+            'web_searches' => $completion->webSearches,
             'input_price' => $inputPrice,
             'output_price' => $outputPrice,
+            'search_price' => $searchPrice,
             'cost' => $cost === null ? null : round($cost, 6),
             'succeeded' => $succeeded,
         ]);

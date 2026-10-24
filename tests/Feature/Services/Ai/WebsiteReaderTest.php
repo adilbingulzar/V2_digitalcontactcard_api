@@ -3,6 +3,7 @@
 namespace Tests\Feature\Services\Ai;
 
 use App\Services\Ai\WebsiteReader;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Mockery\MockInterface;
 use Tests\TestCase;
@@ -77,5 +78,47 @@ class WebsiteReaderTest extends TestCase
         $this->assertStringContainsString('Logo candidates: none (no logo picture on this page', $text);
         $this->assertStringContainsString('Brand name as shown in the page header: tiqs©', $text);
         $this->assertStringContainsString('Other pictures: https://tiqs.test/team.jpg', $text);
+    }
+
+    public function test_reads_the_business_details_of_a_website_built_in_javascript(): void
+    {
+        Http::fake(['https://www.kfc.test*' => Http::response(
+            '<html><head><title>KFC</title><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"KFC Pakistan",'
+            .'"logo":"https://www.kfc.test/KFC-Logo-Red.png","sameAs":["https://www.instagram.com/kfcpakistan"],"contactPoint":[{"@type":"ContactPoint","telephone":"+92-21-35877976"}]},'
+            .'{"@type":"BreadcrumbList","itemListElement":[]}]}</script></head><body><div id="root"></div></body></html>',
+            200,
+            ['Content-Type' => 'text/html'],
+        )]);
+
+        $text = $this->reader(['www.kfc.test' => ['93.184.216.34']])->read('https://www.kfc.test/');
+
+        $this->assertStringContainsString('"name":"KFC Pakistan"', $text);
+        $this->assertStringContainsString('"telephone":"+92-21-35877976"', $text);
+        $this->assertStringNotContainsString('BreadcrumbList', $text);
+        $this->assertStringContainsString('Logo candidates: https://www.kfc.test/KFC-Logo-Red.png', $text);
+        $this->assertStringContainsString('Contact and social links: https://www.instagram.com/kfcpakistan', $text);
+    }
+
+    public function test_says_why_a_website_could_not_be_read(): void
+    {
+        Http::fake(['https://shy.test*' => Http::response('Forbidden', 403, ['Content-Type' => 'text/html'])]);
+        $reader = $this->reader(['shy.test' => ['93.184.216.34']]);
+
+        $this->assertNull($reader->read('https://shy.test'));
+        $this->assertStringContainsString('turned our visit away (HTTP 403)', $reader->problem());
+
+        $this->assertNull($reader->read('nowhere.test'));
+        $this->assertSame('the website nowhere.test does not exist (no such address)', $reader->problem());
+        Http::assertSent(fn ($request): bool => str_contains($request->header('User-Agent')[0], 'Mozilla/5.0'));
+    }
+
+    public function test_tries_http_when_https_does_not_work_and_no_scheme_was_given(): void
+    {
+        Http::fake([
+            'https://oldsite.test*' => fn () => throw new ConnectionException('SSL certificate problem'),
+            'http://oldsite.test*' => Http::response('<title>Old site</title>', 200, ['Content-Type' => 'text/html']),
+        ]);
+
+        $this->assertStringContainsString('Address: http://oldsite.test', $this->reader(['oldsite.test' => ['93.184.216.34']])->read('oldsite.test'));
     }
 }
